@@ -1,0 +1,250 @@
+---
+title: "work"
+author: "Allison Green"
+date: "5/14/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+```{r}
+slr_gd <- function(dat, response, explanatory){
+  
+  X <- dat %>% 
+    pull({{explanatory}}) %>% scale()
+  
+  Y <- dat %>% 
+    pull({{response}}) %>% scale()
+  #X <-  cbind(1, x)
+  
+  explan_name <- dat %>%
+    select({{explanatory}}) %>%
+    names()
+  L = .00001 #the learning rate
+  epochs = 100000 #the number of iterations to perform gradient descent 
+ 
+  n = length(X)
+  m = 0 #slope
+  c = 0 #intercept
+
+  for (i in 1:epochs){
+
+    Y_pred = m*X + c  # The current predicted value of Y
+    D_m = (-2/n) * sum(X * (Y - Y_pred)) # Derivative wrt m
+    D_c = (-2/n) * sum(Y - Y_pred)  # Derivative wrt c
+    m = m - L * D_m  # Update m
+    c = c - L * D_c  # Update c 
+  }
+  
+  results <- tibble::tibble(
+    Intercept = c,
+    Slope = m
+  )
+  return (results)
+  
+}
+data("mtcars")
+mtcars %>% slr_gd(mpg, hp)
+```
+
+
+
+```{r}
+  X <- mtcars %>% 
+    pull(mpg) %>% scale()
+  Y <- mtcars %>% 
+    pull(hp) %>% scale()
+  L = .0001 #the learning rate
+  epochs = 100 #the number of iterations to perform gradient descent 
+  L = .0001
+  n = length(X)
+  m = 0 #slope
+  c = 0 #intercept
+
+  for (i in 1:1000){
+
+    Y_pred = m*X + c  # The current predicted value of Y
+    D_m = (-2/n) * sum(X * (Y - Y_pred)) # Derivative wrt m
+    D_c = (-2/n) * sum(Y - Y_pred)  # Derivative wrt c
+    m <- m - L * ((1 / n) * (sum((yhat - y) * x)))
+    c <- c - L * ((1 / n) * (sum(yhat - y)))
+    # m = m - L * D_m  # Update m
+    # c = c - L * D_c  # Update c 
+  }
+  
+  results <- tibble::tibble(
+    Intercept = c,
+    Slope = m
+  )
+
+  results
+```
+
+```{r}
+gradientDesc <- function(x, y, learn_rate, conv_threshold, n, max_iter) {
+  plot(x, y, col = "blue", pch = 20)
+  m <- runif(1, 0, 1)
+  c <- runif(1, 0, 1)
+  yhat <- m * x + c
+  MSE <- sum((y - yhat) ^ 2) / n
+  converged = F
+  iterations = 0
+  while(converged == F) {
+    ## Implement the gradient descent algorithm
+    m_new <- m - learn_rate * ((1 / n) * (sum((yhat - y) * x)))
+    c_new <- c - learn_rate * ((1 / n) * (sum(yhat - y)))
+    m <- m_new
+    c <- c_new
+    yhat <- m * x + c
+    MSE_new <- sum((y - yhat) ^ 2) / n
+    if(MSE - MSE_new <= conv_threshold) {
+      abline(c, m) 
+      converged = T
+      return(paste("Optimal intercept:", c, "Optimal slope:", m))
+    }
+    iterations = iterations + 1
+    if(iterations > max_iter) { 
+      abline(c, m) 
+      converged = T
+      return(paste("Optimal intercept:", c, "Optimal slope:", m))
+    }
+  }
+}
+gradientDesc(mtcars$mpg, mtcars$hp, 0.0000293, 0.001, 32, 2500000)
+```
+```{r}
+mlr_gd <- function(dat, response) {
+  
+  x <- dat %>% 
+    select(-{{response}}) %>% 
+    as.matrix() %>% scale()
+  X <- cbind(1, x)
+  Y <- dat %>% 
+    pull({{response}}) %>% as.matrix() %>% scale()
+  
+  L = .0001 #the learning rate
+  epochs = 100 #the number of iterations to perform gradient descent 
+ 
+  n = length(X)
+  m = 0 #slope
+  c = 0 #intercept
+
+for (i in 1:epochs){
+
+    Y_pred = as.matrix(m*X + c)  # The current predicted value of Y
+    
+    differences_Y <- apply(Y_pred,2 , function(Y_pred){
+      sum(Y - Y_pred)
+    })
+    
+    differences_Y_forDM <- apply(Y_pred,2 , function(Y_pred){
+      (Y - Y_pred)
+    })
+   
+    touseinDM <- apply(X, 2 , function(X){
+      sum(X %*% differences_Y_forDM)
+    })
+  
+    D_m = (2/n) * touseinDM # Derivative wrt m
+   
+    D_c = (2/n) * differences_Y  # Derivative wrt c
+    m = m - L * D_m  # Update m
+    c = c - L * D_c  # Update c 
+  }
+  results <- cbind(c, m) %>% 
+    t() %>% 
+    as.data.frame(row.names = FALSE) %>%
+    rename(Intercept = `V1`)
+  ### Compute coefficients by gradient descent
+  ### Return a data frame of the same form as in the `multiple_linear_regression`
+  
+  return(results)
+  
+}
+mtcars %>%
+    dplyr::select(mpg, hp, cyl) %>%
+    mlr_gd(mpg)
+```
+```{r}
+mass_result <- lm(mpg ~ hp + cyl, data = mtcars)
+mass_result
+```
+
+```{r}
+mlr_qr <- function(dat, response) {
+  x <- dat %>% 
+    select(-{{response}})  
+    
+  y <- dat %>% 
+    pull({{response}})
+  X <- cbind(Intercept = 1, x)
+  
+  QR <- qr(X)
+  results <- solve.qr(QR, y) %>% t() %>% as.data.frame() 
+  
+  ### Compute coefficients by QR decomposition
+  ### Return a data frame of the same form as in the `multiple_linear_regression`
+  
+  return(results)
+  
+}
+my_result <- mtcars %>%
+     dplyr::select(mpg, hp, cyl) %>%
+     mlr_qr(mpg)
+my_result
+```
+```{r}
+yeet <- function(dat, response, explanatory){
+
+  ### Compute coefficients by gradient descent
+  ### Return a data frame of the same form as in the `simple_linear_regression`
+  x <- dat %>% pull({{explanatory}}) %>% as.matrix()
+  y <- dat %>% pull({{response}})
+
+  explan_name <- dat %>%
+    select({{explanatory}}) %>%
+    names()
+
+  m = 0
+  c = 0
+
+  #learning rate
+  L = 0.00001
+
+  # the number of iterations to perform gradient descent
+  iter = 1000000
+
+  n = length(x)
+
+  # performing Gradient Descent
+  for (i in 1:iter) {
+    # The current predicted value of Y
+    y_hat = m * x + c
+
+    # Derivative of m
+    D_m = (-2/n) * sum(x * (y - y_hat))
+    # Derivative of c
+    D_c = (-2/n) * sum(y - y_hat)
+    # Update m
+    m = m - L * D_m
+    # Update c
+    c = c - L * D_c
+  }
+
+  results <- tibble::tibble(
+    Intercept = c,
+    Slope = m
+  )
+
+  names(results)[2] <- explan_name
+
+  return(results)
+
+}
+data("mtcars")
+mtcars %>% yeet(mpg, hp)
+```
+
